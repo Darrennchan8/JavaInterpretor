@@ -4,17 +4,18 @@ import java.util.ArrayList;
  * Created by Darren Chan on 1/16/2017.
  * This organizes all of our custom operators, separating the logic.
  */
+
 class CustomOperators {
 	static boolean apply(OperatorStore operators) {
 		operators.add(new Operator("'", "'", 14) {
-			boolean breakOnNewline() {return true;}
+			protected boolean breakOnNewline() {return true;}
 
 			public GenericVar compute(String str) {
 				return new GenericVar(Type.string, str);
 			}
 		});
 		operators.add(new Operator("\"", "\"", 14) {
-			boolean breakOnNewline() {return true;}
+			protected boolean breakOnNewline() {return true;}
 
 			public GenericVar compute(String str) {
 				return new GenericVar(Type.string, str);
@@ -26,22 +27,22 @@ class CustomOperators {
 			}
 		});
 		operators.add(new Operator("(", ")", 14) {
-			boolean supportsSequence() {return true;}
+			protected boolean supportsSequence() {return true;}
 
 			public GenericVar compute(String str) {
 				return new Interpreter().interpret(str);
 			}
 		});
 		operators.add(new Operator("{", "}", 14) {
-			boolean supportsSequence() {return true;}
-			boolean supportsTuple() {return true;}
+			protected boolean supportsSequence() {return true;}
+			protected boolean supportsTuple() {return true;}
 
 			public GenericVar compute(String str) {
 				return new Interpreter().interpret(str);
 			}
 		});
 		operators.add(new Operator("[", "]", 14) {
-			boolean supportsSequence() {return true;}
+			protected boolean supportsSequence() {return true;}
 
 			public GenericVar compute(String str) {
 				return Sequence.toSequence(new Interpreter().interpret(str));
@@ -49,7 +50,7 @@ class CustomOperators {
 		});
 		operators.add(new AssignmentArithmeticOperator("++", 13, OperatorType.after) {
 			public GenericVar set(GenericVar varName, GenericVar value) throws InterpreterException {
-				Interpreter.setVariable(varName.getUnformattedString(), value);
+				Interpreter.setVariable(varName.getVariableName(), value);
 				return varName;
 			}
 
@@ -59,7 +60,7 @@ class CustomOperators {
 		});
 		operators.add(new AssignmentArithmeticOperator("--", 13, OperatorType.after) {
 			public GenericVar set(GenericVar varName, GenericVar value) throws InterpreterException {
-				Interpreter.setVariable(varName.getUnformattedString(), value);
+				Interpreter.setVariable(varName.getVariableName(), value);
 				return varName;
 			}
 
@@ -69,7 +70,7 @@ class CustomOperators {
 		});
 		operators.add(new LogicalOperator("!", 12, OperatorType.before) {
 			public GenericVar compute(GenericVar value) throws InterpreterException {
-				return new GenericVar(Type.bool, boolize(value.getType(), value.get()) ? "false" : "true", value.getUnformattedString());
+				return new GenericVar(Type.bool, toBoolean(value.getType(), value.get()) ? "false" : "true", value.getVariableName());
 			}
 		});
 		operators.add(new UnaryOperator("-", 12) {
@@ -192,12 +193,12 @@ class CustomOperators {
 		});
 		operators.add(new LogicalOperator("&&", 6) {
 			public GenericVar compute(GenericVar value1, GenericVar value2) throws InterpreterException {
-				return new GenericVar(Type.bool, boolize(value1.getType(), value1.get()) && boolize(value2.getType(), value2.get()) ? "true" : "false");
+				return new GenericVar(Type.bool, toBoolean(value1.getType(), value1.get()) && toBoolean(value2.getType(), value2.get()) ? "true" : "false");
 			}
 		});
 		operators.add(new LogicalOperator("||", 5) {
 			public GenericVar compute(GenericVar value1, GenericVar value2) throws InterpreterException {
-				return new GenericVar(Type.bool, boolize(value1.getType(), value1.get()) || boolize(value2.getType(), value2.get()) ? "true" : "false");
+				return new GenericVar(Type.bool, toBoolean(value1.getType(), value1.get()) || toBoolean(value2.getType(), value2.get()) ? "true" : "false");
 			}
 		});
 		operators.add(new Operator(":", 4, OperatorType.between) {
@@ -206,18 +207,18 @@ class CustomOperators {
 			}
 		});
 		operators.add(new LogicalOperator("?", 3) {
-			boolean supportsTuple() {return true;}
+			protected boolean supportsTuple() {return true;}
 
 			public GenericVar compute(GenericVar condition, GenericVar results) throws InterpreterException {
 				if (results.getType() != Type.tuple) {
 					throw new Error("Incomplete Ternary Operator");
 				}
-				return boolize(condition.getType(), condition.get()) ? results.getFirst() : results.getSecond();
+				return toBoolean(condition.getType(), condition.get()) ? results.getFirst() : results.getSecond();
 			}
 		});
 		operators.add(new Operator("=", 2, OperatorType.between) {
 			public GenericVar compute(GenericVar varName, GenericVar value) throws InterpreterException {
-				return Interpreter.setVariable(varName.getUnformattedString(), value);
+				return Interpreter.setVariable(varName.getVariableName(), value);
 			}
 		});
 		operators.add(new AssignmentArithmeticOperator("**=", 2) {
@@ -251,6 +252,8 @@ class CustomOperators {
 			}
 		});
 		operators.add(new Operator(",", 1, OperatorType.between) {
+			protected boolean supportsSequence() {return true;}
+
 			public GenericVar compute(GenericVar previous, GenericVar next) throws InterpreterException {
 				Sequence currSequence = Sequence.toSequence(previous);
 				currSequence.add(next);
@@ -267,10 +270,12 @@ abstract class ArithmeticOperator extends Operator {
 
 	String trim(String str) {
 		int start = 0;
-		for (; start < str.length() - 1 && str.charAt(start) == '0' && str.charAt(start + 1) != '.'; start++) {
+		while (start < str.length() - 1 && str.charAt(start) == '0' && str.charAt(start + 1) != '.') {
+			start++;
 		}
 		int end = str.length() - 1;
-		for (; end >= 0 && str.charAt(end) == '0'; end--) {
+		while (end >= 0 && str.charAt(end) == '0') {
+			end--;
 		}
 		str = str.substring(start, end + 1);
 		return str.charAt(str.length() - 1) == '.' ? str.substring(start, str.length() - 1) : str;
@@ -352,27 +357,27 @@ class AssignmentArithmeticOperator extends ArithmeticOperator {
 	}
 
 	public GenericVar set(GenericVar varName, GenericVar value) throws InterpreterException {
-		return Interpreter.setVariable(varName.getUnformattedString(), value);
-	};
+		return Interpreter.setVariable(varName.getVariableName(), value);
+	}
 
 	public GenericVar compute(GenericVar varName, GenericVar value) throws InterpreterException {
 		if (symbol.equals("+=") && (varName.getType() == Type.string || value.getType() == Type.string)) {
-			return set(varName, new GenericVar(Type.string, varName.get() + value.get(), varName.getUnformattedString()));
+			return set(varName, new GenericVar(Type.string, varName.get() + value.get(), varName.getVariableName()));
 		}
 		String computedValue1 = getImplicitValue(varName);
 		String computedValue2 = getImplicitValue(value);
 		if (computedValue1.equals("NaN") || computedValue2.equals("NaN")) {
-			return set(varName, new GenericVar(Type.number, "NaN", varName.getUnformattedString()));
+			return set(varName, new GenericVar(Type.number, "NaN", varName.getVariableName()));
 		}
-		return set(varName, new GenericVar(Type.number, trim(applyOperation(computedValue1, computedValue2)), varName.getUnformattedString()));
+		return set(varName, new GenericVar(Type.number, trim(applyOperation(computedValue1, computedValue2)), varName.getVariableName()));
 	}
 
 	public GenericVar compute(GenericVar side) throws InterpreterException {
 		String computedValue = getImplicitValue(side);
 		if (computedValue.equals("NaN")) {
-			return set(side, new GenericVar(Type.number, "NaN", side.getUnformattedString()));
+			return set(side, new GenericVar(Type.number, "NaN", side.getVariableName()));
 		}
-		return set(side, new GenericVar(Type.number, trim(applyOperation(computedValue)), side.getUnformattedString()));
+		return set(side, new GenericVar(Type.number, trim(applyOperation(computedValue)), side.getVariableName()));
 	}
 }
 
@@ -415,10 +420,12 @@ abstract class UnaryOperator extends Operator {
 
 	String trim(String str) {
 		int start = 0;
-		for (; start < str.length() - 1 && str.charAt(start) == '0' && str.charAt(start + 1) != '.'; start++) {
+		while (start < str.length() - 1 && str.charAt(start) == '0' && str.charAt(start + 1) != '.') {
+			start++;
 		}
 		int end = str.length() - 1;
-		for (; end >= 0 && str.charAt(end) == '0'; end--) {
+		while (end >= 0 && str.charAt(end) == '0') {
+			end--;
 		}
 		str = str.substring(start, end + 1);
 		return str.charAt(str.length() - 1) == '.' ? str.substring(start, str.length() - 1) : str;
@@ -530,7 +537,7 @@ class LogicalOperator extends ArithmeticOperator {
 		return false;
 	}
 
-	boolean boolize(Type type, String value) {
+	boolean toBoolean(Type type, String value) {
 		switch(type) {
 			case string: return value.length() != 0;
 			case number: return Double.parseDouble(value) != 0;
@@ -553,7 +560,7 @@ class LogicalOperator extends ArithmeticOperator {
 class Sequence extends GenericVar {
 	private ArrayList<GenericVar> sequence = new ArrayList<>();
 
-	Sequence(GenericVar var) {
+	private Sequence(GenericVar var) {
 		super(Type.sequence, "");
 		sequence.add(var);
 	}
