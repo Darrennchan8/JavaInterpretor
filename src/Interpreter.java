@@ -106,10 +106,7 @@ class Operator {
     private String symbol2;
     private int priority;
     private OperatorType operatorType;
-    protected boolean mSupportsTuple = false;
-    protected boolean mmSupportsSequence = false;
-    protected boolean mBreakOnSemicolon = true;
-    protected boolean mBreakOnNewline = false;
+    private boolean mBreakOnSemicolon = true;
 
     String getSymbol() {
         return symbol;
@@ -131,11 +128,11 @@ class Operator {
     }
 
     boolean supportsTuple() {
-        return mSupportsTuple;
+        return false;
     }
 
-    boolean mSupportsSequence() {
-        return mmSupportsSequence;
+    boolean supportsSequence() {
+        return false;
     }
 
     boolean breakOnSemicolon() {
@@ -143,7 +140,7 @@ class Operator {
     }
 
     boolean breakOnNewline() {
-        return mBreakOnNewline;
+        return false;
     }
 
     Operator(String symbol, int priority, OperatorType type) {
@@ -220,9 +217,6 @@ class CommandChain {
         operator.add(true);
     }
 
-    public void add() {
-    }
-
     private SimpleEntry<Integer, Integer> getMaxOpPos() throws InterpreterException {
         int maxPrecedence = 0;
         int maxIndex = 0;
@@ -230,9 +224,9 @@ class CommandChain {
         boolean set = false;
         for (int i = 0; i != operator.size(); i++) {
             if (operator.get(i)) {
-                ArrayList<Operator> qualified = (ArrayList<Operator>) chain.get(i);
+                ArrayList qualified = (ArrayList) chain.get(i);
                 for (int ii = 0; ii != qualified.size(); ii++) {
-                    Operator op = qualified.get(ii);
+                    Operator op = (Operator) qualified.get(ii);
                     if (op.getPriority() > maxPrecedence) {
                         if (op.getOperatorType() == OperatorType.before && (i < 1 || operator.get(i - 1)) && i < operator.size() - 1 && !operator.get(i + 1) ||
                                 op.getOperatorType() == OperatorType.between && i > 0 && i < operator.size() - 1 && !operator.get(i + 1) && !operator.get(i - 1) ||

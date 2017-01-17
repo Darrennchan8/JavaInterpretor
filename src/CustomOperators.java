@@ -7,14 +7,14 @@ import java.util.ArrayList;
 class CustomOperators {
 	static boolean apply(OperatorStore operators) {
 		operators.add(new Operator("'", "'", 14) {
-			protected boolean mBreakOnNewline = true;
+			boolean breakOnNewline() {return true;}
 
 			public GenericVar compute(String str) {
 				return new GenericVar(Type.string, str);
 			}
 		});
 		operators.add(new Operator("\"", "\"", 14) {
-			protected boolean mBreakOnNewline = true;
+			boolean breakOnNewline() {return true;}
 
 			public GenericVar compute(String str) {
 				return new GenericVar(Type.string, str);
@@ -26,22 +26,22 @@ class CustomOperators {
 			}
 		});
 		operators.add(new Operator("(", ")", 14) {
-			protected boolean mSupportsSequence = true;
+			boolean supportsSequence() {return true;}
 
 			public GenericVar compute(String str) {
 				return new Interpreter().interpret(str);
 			}
 		});
 		operators.add(new Operator("{", "}", 14) {
-			protected boolean supportsTuple = true;
-			protected boolean mSupportsSequence = true;
+			boolean supportsSequence() {return true;}
+			boolean supportsTuple() {return true;}
 
 			public GenericVar compute(String str) {
 				return new Interpreter().interpret(str);
 			}
 		});
 		operators.add(new Operator("[", "]", 14) {
-			protected boolean mSupportsSequence = true;
+			boolean supportsSequence() {return true;}
 
 			public GenericVar compute(String str) {
 				return Sequence.toSequence(new Interpreter().interpret(str));
@@ -206,7 +206,7 @@ class CustomOperators {
 			}
 		});
 		operators.add(new LogicalOperator("?", 3) {
-			protected boolean supportsTuple = true;
+			boolean supportsTuple() {return true;}
 
 			public GenericVar compute(GenericVar condition, GenericVar results) throws InterpreterException {
 				if (results.getType() != Type.tuple) {
