@@ -1,6 +1,7 @@
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Map;
 
 
 enum Type {
@@ -34,6 +35,7 @@ class GenericVar {
 	private String mValue;
 	private String mVariableName = null;
 	private GenericVar[] mTupleVars;
+	private HashMap<GenericVar, GenericVar> mProperties = new HashMap<>();
 
 	GenericVar(Type type, String value, String variableName) {
 		this.mType = type;
@@ -97,6 +99,30 @@ class GenericVar {
 			case tuple: return mTupleVars[0] + " : " + mTupleVars[1];
 			default: return mValue;
 		}
+	}
+
+	void addProperty(GenericVar key, GenericVar value) throws InterpreterException {
+		if (key.getType() == Type.number || key.getType() == Type.string) {
+			mProperties.put(key, value);
+		} else {
+			throw new InterpreterException("Invalid Key: " + key.get());
+		}
+	}
+
+	GenericVar getProperty(GenericVar key) throws InterpreterException {
+		Type _type = key.getType();
+		if (_type != Type.string && _type != Type.number) {
+			throw new InterpreterException("Invalid Type " + _type);
+		}
+		if (mType == Type.undefined || (mType == Type.object && mValue.equals("null"))) {
+			throw new InterpreterException("Cannot read property '" + key.get() + "' of " + mValue);
+		}
+		for (Map.Entry<GenericVar, GenericVar> i : mProperties.entrySet()) {
+			if (i.getKey().getType() == _type && i.getKey().get().equals(key.get())) {
+				return i.getValue();
+			}
+		}
+		return new GenericVar(Type.undefined, "undefined");
 	}
 }
 
@@ -257,6 +283,7 @@ class CommandChain {
 
 	GenericVar evaluate() throws InterpreterException {
 		while (operators()) {
+			System.out.println(chain);
 			SimpleEntry<Integer, Integer> details = getMaxOpPos();
 			int i = details.getKey();
 			int ii = details.getValue();
@@ -316,6 +343,7 @@ class CommandChain {
 		if (chain.size() == 0) {
 			return new GenericVar(Type.undefined, "undefined");
 		} else if (chain.size() == 1) {
+			System.out.println(((GenericVar)chain.get(0)).getType());
 			return (GenericVar)chain.get(0);
 		} else {
 			throw new InterpreterException("Unexpected value");
@@ -329,6 +357,11 @@ class CommandChain {
 
 
 class Interpreter {
+	/**
+	 * @TODO:
+	 * Don't automatically parse strings into GenericVars,
+	 * if it is necessary, do it in the CommandChain.
+	*/
 	private static HashMap<String, GenericVar> variables = new HashMap<>();
 	private OperatorStore operators = new OperatorStore();
 

@@ -33,6 +33,11 @@ class CustomOperators {
 				return new Interpreter().interpret(str);
 			}
 		});
+		operators.add(new Operator(".", 14, OperatorType.between) {
+			public GenericVar compute(GenericVar before, GenericVar after) throws InterpreterException {
+				return before.getProperty(new GenericVar(Type.string, after.getVariableName()));
+			}
+		});
 		operators.add(new Operator("{", "}", 14) {
 			protected boolean supportsSequence() {return true;}
 			protected boolean supportsTuple() {return true;}
@@ -44,8 +49,9 @@ class CustomOperators {
 		operators.add(new Operator("[", "]", 14) {
 			protected boolean supportsSequence() {return true;}
 
-			public GenericVar compute(String str) {
-				return Sequence.toSequence(new Interpreter().interpret(str));
+			public GenericVar compute(String str) throws InterpreterException {
+				Sequence evaluatedValue = Sequence.toSequence(new Interpreter().interpret(str));
+				return Sequence.toArray(evaluatedValue);
 			}
 		});
 		operators.add(new AssignmentArithmeticOperator("++", 13, OperatorType.after) {
@@ -558,15 +564,16 @@ class LogicalOperator extends ArithmeticOperator {
 }
 
 class Sequence extends GenericVar {
-	private ArrayList<GenericVar> sequence = new ArrayList<>();
+	private ArrayList<GenericVar> mSequence = new ArrayList<>();
 
 	private Sequence(GenericVar var) {
 		super(Type.sequence, "");
-		sequence.add(var);
+		mSequence.add(var);
 	}
 
 	void add(GenericVar var) {
-		sequence.add(var);
+		System.out.println("Adding: " + var);
+		mSequence.add(var);
 	}
 
 	static Sequence toSequence(GenericVar var) {
@@ -577,7 +584,15 @@ class Sequence extends GenericVar {
 		}
 	}
 
+	static GenericVar toArray(Sequence seq) throws InterpreterException {
+		GenericVar array = new GenericVar(Type.object, seq.get());
+		for (int i = 0; i != seq.mSequence.size(); i++) {
+			array.addProperty(new GenericVar(Type.number, String.valueOf(i)), seq.mSequence.get(i));
+		}
+		return array;
+	}
+
 	public String toString() {
-		return sequence.toString();
+		return mSequence.toString();
 	}
 }
